@@ -1,0 +1,123 @@
+from sys import argv
+import os
+import time
+script, directory = argv
+
+#kontrolovane nastavenia
+#search obsahuje nastavenia, ktore tam nesmu byt
+search = ['vtp mode client', 'vtp mode server', ' exec-timeout 60 0', ' exec-timeout 120 0', ' exec-timeout 240 0']
+
+#nsearch obsahuje nastavenia, ktore tam byt musia
+nsearch = ['aaa new-model', 'no ip source-route', ' login authentication ACS', ' transport input ssh', ' exec-timeout 30 0', 'ip ssh version 2', 'spanning-tree portfast default', 'spanning-tree portfast bpduguard default', 'ip dhcp snooping']
+
+#count_nsearch obsahuje nastavenia, ktore sa v configu vyskytuju viacnasobne, a musia tam byt
+count_nsearch = [' switchport port-security', ' storm-control broadcast level 10.00', ' spanning-tree portfast', ' spanning-tree bpduguard enable']
+
+
+#vstup je config zariadenia, uz rozdeleny na riadky
+vstup = []
+#vystup obsahuje polia, kde su nalezy z jednotlivych switchov
+vystup = []
+
+for filename in os.listdir(directory):
+	#print filename		#vypise len mena suborov v adresari "directory"
+	path = os.path.join(directory, filename)	#definicia adresaru
+	#print path		#vypise celu cestu s menom suborov v adresari "path"
+	lines = open(path).read().split('\n')		#precitanie subora v adresari "path"
+	vstup.append(lines)						#vysledny riadky subora (pole) zapise do pola vypis
+	
+def kontrola(atr, natr, count_natr, input, output):
+	pocet_int = 0
+	pocet_atr = []
+	chyby = []
+	
+	#na 1.mieste kazdeho pola bude hostname
+	for riadok in input:
+		if 'hostname' in riadok:
+			hn = riadok.split(' ')
+			hostname = hn[-1]
+			chyby.append(hostname)
+			
+		#zratam pocet kolkokrat je v configu command switchport mode access
+		if 'switchport mode access' in riadok:
+			pocet_int = pocet_int + 1
+	
+	#prehladavam globalne commandy, ktore musia byt v configu. Ak tam nie je vlozim string
+	#do pola chyby
+	for a in natr:
+		found = False
+		for riadok in input:
+			if a == riadok:
+				found = True
+				break
+		if not found:
+			popis = "%s \nNOT CONFIGURED\n" % a
+			chyby.append(popis)
+			
+	#prehladavam globalne commandy, ktore v configu nesmu byt.
+	#Ak tam je vlozim string do pola chyby
+	for a in atr:
+		for riadok in input:
+			if a == riadok:
+				popis = "%s \nCONFIGURED\n" % a
+				chyby.append(popis)
+				
+	#v poli pocet_atr bude kazda zhoda hladaneho atributu (pre tie kde je dolezity aj pocet)
+	for a in count_natr:
+		for riadok in input:
+			if a == riadok:
+				pocet_atr.append(a)
+	
+	#zratam kolkokrat je tam kazdy z atributov, ak je ich menej ako pocet access portov tak
+	#vlozim string do pola chyby
+	for a in count_natr:
+		if pocet_atr.count(a) < pocet_int:
+			popis = "%s \nMISSING ON %s INTERFACE(S)\n" % (a, pocet_int - pocet_atr.count(a))
+			chyby.append(popis)	
+	
+	# na zaver vysledok vlozim do premennej output
+	return output.append(chyby)
+		
+	
+	
+#file je pole s riadkami configu zariadenia. Pre kazde taketo pole vykonavam kontrolu
+for file in vstup:
+	kontrola(search, nsearch, count_nsearch, file, vystup)
+
+	
+#naformatovanie zaverecneho vypisu
+def vypis():
+	print "\n========================================================================================"
+	print "\nCas spustenia skriptu: %s %s\n" % (time.strftime("%d/%m/%Y"), time.strftime("%H:%M:%S"))
+	print "========================================================================================"
+	
+	print "\nPoziadavky boli definovane nasledovne:"
+	print "\nKonfiguracia nesmie obsahovat nasledovne prikazy:\n"
+	for i in search:
+		print i
+	print "\n----------------------------------------------------------------------------------------"	
+	print "\nKonfiguracia musi obsahovat nasledovne prikazy:\n"
+	for i in nsearch:
+		print i
+	print "\n----------------------------------------------------------------------------------------"
+	print "\nKonfiguracia \"access\" portov musi obsahovat nasledovne prikazy:\n"
+	for i in count_nsearch:
+		print i
+	
+	print "\n========================================================================================"
+	print "\nNa nasledovnych zariadeniach boli objavene nedostatky:"
+	for zariadenie in vystup:
+		if len(zariadenie) > 1:
+			print "\n%s\n" % zariadenie[0]
+			for a in zariadenie[1:]:
+				print a
+		print "\n----------------------------------------------------------------------------------------"
+	print "\n\n"
+
+
+vypis()	
+
+
+	
+
+
