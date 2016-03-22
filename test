@@ -1,0 +1,23 @@
+def test(zavislost,atr, natr, count_natr, input, output):
+	device_count_natr = count_natr
+	
+	for riadok in input:
+		if 'hostname' in riadok:
+			hn = riadok.split(' ')
+			hostname = hn[-1]
+			break
+	
+	print hostname
+	print "Pred: ", device_count_natr
+	print "GLOBAL pred:", count_natr
+	for z in zavislost:
+		for riadok in input:
+			if riadok == z[0]:
+				device_count_natr.remove(z[1])
+				break
+	device_count_natr = count_natr
+	print "Po: ", device_count_natr
+	print "GLOBAL po:", count_natr
+
+for file in vstup:
+	test(dependencies, switch_search, switch_nsearch, switch_count_nsearch, file, vystup)
